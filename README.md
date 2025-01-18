@@ -1,110 +1,104 @@
-Here is a detailed **README.md** for your project:
+Here's the updated **README.md** incorporating the latest changes to the project, including GPU detection and the combined repository structure:
 
 ---
 
 # SLM Demo for Alon Fliess's Lecture
 
-This project is a demonstration for **Small Language Models (SLMs)**, part of the lecture by **Alon Fliess**. The demo showcases how to load, run, and interact with the **Phi-3.5-mini-instruct-onnx** model locally using C#. It highlights the capabilities of running a fine-tuned model for AI assistance tasks directly on a local machine without relying on cloud infrastructure.
+This project is a demonstration for **Small Language Models (SLMs)**, presented as part of a lecture by **Alon Fliess**. It highlights how to load and interact with the **Phi-3.5-mini-instruct-onnx** model locally using C#. The demo dynamically determines whether to use GPU or CPU for model inference, ensuring optimal performance on the available hardware.
 
 ---
 
 ## Features
 
-- Automatically downloads the **Phi-3.5-mini-instruct-onnx** model if it's not already available locally.
-- Loads the ONNX-based small language model for local inference.
-- Tokenizes user queries and generates responses using a simple chat loop.
-- Demonstrates inference with quantized models for optimal performance on CPU.
-- Fully written in C# using the **Microsoft.ML.OnnxRuntimeGenAI** library.
+- Automatically clones the Hugging Face repository for **Phi-3.5-mini-instruct-onnx** if not found locally.
+- Dynamically selects GPU or CPU models based on hardware availability.
+- Demonstrates ONNX-based inference for efficient AI tasks.
+- Maintains conversational history and allows users to clear history during the session.
+- Fully implemented in C# using the **Microsoft.ML.OnnxRuntimeGenAI** library.
 
 ---
 
 ## Project Workflow
 
 ### 1. **Setup Phase (Before the Loop)**
-Before entering the chat loop, the program performs the following steps:
 
-1. **Model Path Check**:
-   - The program checks if the specified model directory exists.
-   - If the model is not found, it downloads the necessary files from a Hugging Face repository and extracts them locally.
+1. **Model Directory Check**:
+   - The program checks if the model repository exists locally.
+   - If not found, it clones the **Phi-3.5-mini-instruct-onnx** repository from Hugging Face.
 
-2. **Model Initialization**:
-   - The ONNX model is loaded using the `Model` class, enabling the runtime to process queries efficiently.
+2. **Hardware Detection**:
+   - Detects whether a GPU is available using the `nvidia-smi` command.
+   - Selects the GPU-optimized or CPU-optimized model path accordingly.
 
-3. **Tokenizer Initialization**:
-   - A tokenizer is instantiated to convert textual prompts into tokenized input that the model can process.
+3. **Model and Tokenizer Initialization**:
+   - Loads the ONNX model for either GPU or CPU.
+   - Initializes a tokenizer to process user input and model responses.
 
 4. **System Prompt Setup**:
-   - A system-level prompt is defined to instruct the model about its role as an AI assistant.
-   - This prompt ensures the model maintains a consistent tone and behavior.
+   - A system-level prompt is defined to instruct the model on its role as an AI assistant.
+   - This ensures consistent and concise responses.
 
 ---
 
 ### 2. **Main Chat Loop**
-Inside the main loop, the program handles user queries and generates AI responses:
 
-1. **Prompt Collection**:
-   - The user provides input via the console.
-   - If the input is empty, the program exits.
+1. **User Input**:
+   - The user inputs queries through the console.
+   - Special commands:
+     - `CLH`: Clears the conversation history and starts a new session.
+     - Empty input: Exits the program.
 
-2. **Tokenization**:
-   - The program combines the system prompt and user query into a single text string.
-   - This string is tokenized into numerical representations that the model can understand.
+2. **History Management**:
+   - Keeps a running history of the conversation, allowing the model to generate context-aware responses.
 
 3. **Response Generation**:
-   - A `Generator` object is created and configured with parameters, including:
-     - `max_length`: Maximum length of the response.
-     - `past_present_share_buffer`: Optimization setting for memory usage.
-   - The model processes the tokenized input and predicts the next token(s) iteratively.
+   - The program tokenizes the combined system prompt, user input, and history.
+   - Uses the ONNX model to generate responses token-by-token.
 
-4. **Decoding and Display**:
-   - The generated tokens are decoded back into human-readable text.
-   - The response is displayed to the user.
-
-5. **Loop Continuation**:
-   - The process repeats, allowing the user to ask additional questions until they exit.
+4. **Output**:
+   - Decodes the model's output tokens into human-readable text and displays the response.
 
 ---
 
 ## Functions and Methods Explained
 
 ### **Setup Phase**
-- **`DownloadAndExtractModel(string url, string destinationPath)`**:
-  - Downloads the model from the specified URL if it is not found locally.
-  - Extracts the model files and prepares them for use.
+- **`CloneGitRepository(string repoUrl, string destinationPath)`**:
+  - Clones the model repository from Hugging Face if not already present locally.
+  - Handles errors during the cloning process.
 
-- **`new Model(modelPath)`**:
-  - Initializes the ONNX runtime model, enabling it to handle inference tasks.
-
-- **`new Tokenizer(model)`**:
-  - Creates a tokenizer for converting text into token sequences compatible with the model.
+- **`IsGpuAvailable()`**:
+  - Checks for GPU availability using the `nvidia-smi` command.
+  - Returns `true` if a GPU is detected.
 
 ---
 
 ### **Chat Loop Functions**
 - **`tokenizer.Encode(fullPrompt)`**:
-  - Converts the combined system prompt and user query into numerical tokens.
+  - Tokenizes the combined system prompt, user query, and conversation history.
 
 - **`new GeneratorParams(model)`**:
-  - Configures the generation parameters, such as:
-    - Maximum length of the response.
-    - Optimization settings for memory usage.
+  - Configures the generation parameters for the model, including:
+    - Maximum response length (`max_length`).
+    - Optimization for memory usage.
 
 - **`generator.ComputeLogits()`**:
-  - Processes the current token sequence to predict the next possible token.
+  - Processes the tokenized input to calculate the next possible tokens.
 
 - **`generator.GenerateNextToken()`**:
-  - Advances the token generation by selecting the most probable next token.
+  - Advances the generation process by selecting the next most probable token.
 
 - **`tokenizer.Decode(newToken)`**:
-  - Converts the generated token back into human-readable text for display.
+  - Converts the generated token into human-readable text.
 
 ---
 
 ## Prerequisites
 
-- **.NET SDK**: Ensure you have the latest .NET SDK installed.
-- **Hugging Face Model Access**: The program downloads the Phi-3.5-mini-instruct-onnx model from Hugging Face. Ensure internet access is available during the initial run.
-- **ONNX Runtime**: The `Microsoft.ML.OnnxRuntimeGenAI` library is required for model inference.
+- **.NET SDK**: Ensure the latest .NET SDK is installed.
+- **ONNX Runtime**: Required for running the models locally.
+- **Hugging Face Repository Access**: Internet access is needed for the initial repository cloning.
+- **GPU Support**: A compatible NVIDIA GPU is recommended but not required.
 
 ---
 
@@ -126,7 +120,9 @@ Inside the main loop, the program handles user queries and generates AI response
    dotnet run
    ```
 
-4. Ask questions via the console, and the model will generate responses in real-time.
+4. Interact with the AI assistant:
+   - Ask questions via the console.
+   - Use the `CLH` command to clear history.
 
 ---
 
@@ -144,4 +140,19 @@ Phi3.5: The capital of France is Paris.
 
 ---
 
-This project demonstrates the power and efficiency of Small Language Models for local AI tasks. Feel free to explore, modify, and extend the code! Let me know if you'd like further assistance.
+## Technical Details
+
+### Repository Structure
+The **Phi-3.5-mini-instruct-onnx** repository contains both GPU and CPU versions:
+
+- **GPU**: Located in `gpu/gpu-int4-awq-block-128`.
+- **CPU**: Located in `cpu_and_mobile/cpu-int4-awq-block-128-acc-level-4`.
+
+### Dynamic Path Selection
+- The program detects the hardware and selects the appropriate subdirectory.
+- GPU model path: `gpu/gpu-int4-awq-block-128`.
+- CPU model path: `cpu_and_mobile/cpu-int4-awq-block-128-acc-level-4`.
+
+---
+
+This project is designed to showcase the capabilities of Small Language Models and their efficiency in local AI inference tasks. It demonstrates how lightweight models can be effectively utilized in real-world scenarios. Feel free to explore and adapt the code for your own use cases.

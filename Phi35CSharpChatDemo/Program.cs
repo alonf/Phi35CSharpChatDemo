@@ -1,16 +1,31 @@
-﻿using System.IO.Compression;
+﻿using System.Diagnostics;
+using System.IO;
 using Microsoft.ML.OnnxRuntimeGenAI;
 
-var modelPath = @"C:\Dev\PhiModels\Phi-3.5-mini-instruct-onnx\cpu_and_mobile\cpu-int4-rtn-block-32";
-var modelUrl = "https://huggingface.co/microsoft/Phi-3.5-mini-instruct-onnx/resolve/main/cpu_and_mobile/cpu-int4-rtn-block-32.zip";
+var modelDirectory = @"C:\Dev\PhiModels\Phi-3.5-mini-instruct-onnx";
+var gitRepoUrl = "https://huggingface.co/microsoft/Phi-3.5-mini-instruct-onnx";
 
-// Check if model exists locally
-if (!Directory.Exists(modelPath))
+// Clone the repository if the directory does not exist
+if (!Directory.Exists(modelDirectory))
 {
-    Console.WriteLine("Model not found locally. Downloading...");
-    await DownloadAndExtractModel(modelUrl, modelPath);
+    Console.WriteLine("Model directory not found. Cloning the repository...");
+    if (CloneGitRepository(gitRepoUrl, modelDirectory))
+    {
+        Console.WriteLine("Repository cloned successfully.");
+    }
+    else
+    {
+        Console.WriteLine("Failed to clone the repository.");
+        return;
+    }
+}
+else
+{
+    Console.WriteLine("Model directory already exists. Skipping clone.");
 }
 
+// Load the model and tokenizer
+var modelPath = Path.Combine(modelDirectory, "cpu_and_mobile", "cpu-int4-awq-block-128-acc-level-4");
 var model = new Model(modelPath);
 var tokenizer = new Tokenizer(model);
 
@@ -26,7 +41,7 @@ while (true)
     var userQ = Console.ReadLine();
     if (string.IsNullOrEmpty(userQ)) break;
 
-    Console.Write("Phi3: ");
+    Console.Write("Phi3.5: ");
     var fullPrompt = $"<|system|>{systemPrompt}<|end|><|user|>{userQ}<|end|><|assistant|>";
     var tokens = tokenizer.Encode(fullPrompt);
 
@@ -48,28 +63,42 @@ while (true)
     Console.WriteLine();
 }
 
-
-async Task DownloadAndExtractModel(string url, string destinationPath)
+static bool CloneGitRepository(string repoUrl, string destinationPath)
 {
-    var tempFile = Path.Combine(Path.GetTempPath(), "model.zip");
-
-    using (HttpClient client = new HttpClient())
+    try
     {
-        using (var response = await client.GetAsync(url))
+        var process = new Process
         {
-            response.EnsureSuccessStatusCode();
-            using (var fs = new FileStream(tempFile, FileMode.Create, FileAccess.Write, FileShare.None))
+            StartInfo = new ProcessStartInfo
             {
-                await response.Content.CopyToAsync(fs);
+                FileName = "git",
+                Arguments = $"clone {repoUrl} \"{destinationPath}\"",
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
             }
+        };
+
+        process.Start();
+        string output = process.StandardOutput.ReadToEnd();
+        string error = process.StandardError.ReadToEnd();
+        process.WaitForExit();
+
+        if (process.ExitCode == 0)
+        {
+            Console.WriteLine(output);
+            return true;
+        }
+        else
+        {
+            Console.WriteLine($"Error during cloning: {error}");
+            return false;
         }
     }
-
-    // Extract the downloaded zip file
-    ZipFile.ExtractToDirectory(tempFile, destinationPath);
-
-    // Clean up the temporary file
-    File.Delete(tempFile);
-
-    Console.WriteLine($"Model downloaded and extracted to: {destinationPath}");
+    catch (Exception ex)
+    {
+        Console.WriteLine($"Exception occurred while cloning: {ex.Message}");
+        return false;
+    }
 }

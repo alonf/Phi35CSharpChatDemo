@@ -1,5 +1,9 @@
 ﻿using System.Diagnostics;
+using System.Runtime.InteropServices;
 using Microsoft.ML.OnnxRuntimeGenAI;
+
+const int vkCtrl = 0x11;
+const int vkCloseBracket = 0xDD;
 
 var modelDirectory = @"C:\Dev\PhiModels\Phi-3.5-mini-instruct-onnx";
 var gitRepoUrl = "https://huggingface.co/microsoft/Phi-3.5-mini-instruct-onnx";
@@ -86,8 +90,12 @@ while (true)
     generatorParams.SetInputSequences(tokens);
 
     var generator = new Generator(model, generatorParams);
+
     while (!generator.IsDone())
     {
+        if (IsUserInterrupted())
+            break;
+
         generator.ComputeLogits();
         generator.GenerateNextToken();
         var outputTokens = generator.GetSequence(0);
@@ -95,12 +103,32 @@ while (true)
         var output = tokenizer.Decode(newToken);
         Console.ForegroundColor = ConsoleColor.White;
         Console.Write(output);
+
         Console.ResetColor();
 
         // Append the assistant's response to the conversation history
         conversationHistory += output;
     }
     Console.WriteLine();
+}
+
+static bool IsUserInterrupted()
+{
+    if ((GetAsyncKeyState(vkCtrl) & 0x8000) != 0 && (GetAsyncKeyState(vkCloseBracket) & 0x8000) != 0)
+    {
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.WriteLine("\nPhi3.5 Answer interrupted by user.");
+        Console.ResetColor();
+        // Clear the input buffer
+        while (Console.KeyAvailable)
+        {
+            Console.ReadKey(true);
+        }
+
+        return true;
+    }
+
+    return false;
 }
 
 static bool CloneGitRepository(string repoUrl, string destinationPath)
@@ -132,13 +160,11 @@ static bool CloneGitRepository(string repoUrl, string destinationPath)
             Console.ResetColor();
             return true;
         }
-        else
-        {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine($"Error during cloning: {error}");
-            Console.ResetColor();
-            return false;
-        }
+
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.WriteLine($"Error during cloning: {error}");
+        Console.ResetColor();
+        return false;
     }
     catch (Exception ex)
     {
@@ -177,3 +203,7 @@ static bool IsGpuAvailable()
         return false;
     }
 }
+
+[DllImport("user32.dll")]
+static extern short GetAsyncKeyState(int vKey);
+
